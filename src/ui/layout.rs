@@ -57,7 +57,7 @@ pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show
 
     // Header: level & mood
     let level_name = match state.pet.level {
-        1 => "Sprout",
+        1 => "Egg",
         2 => "Buddy",
         _ => "Elder",
     };
