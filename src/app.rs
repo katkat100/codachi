@@ -9,7 +9,7 @@ use crate::achievements::check_achievements;
 use crate::config::Config;
 use crate::events::git::{apply_new_commits, get_commit_count};
 use crate::events::linter::{parse_output, run_lint, LintResult};
-use crate::events::watcher::start_watcher;
+use crate::events::watcher::{start_watcher, WatchEvent};
 use crate::pet::{apply_clean, apply_feed, apply_hunger_decay, apply_save_result, calculate_mood, check_level_up};
 use crate::remarks::{get_remark, RemarkEvent};
 use crate::state::CodachiState;
@@ -30,10 +30,11 @@ pub struct App {
     excited_until: Option<Instant>,
     show_achievements: bool,
     should_quit: bool,
+    test_mode: bool,
 }
 
 impl App {
-    pub fn new(project_dir: &Path) -> Result<Self> {
+    pub fn new(project_dir: &Path, test_mode: bool) -> Result<Self> {
         let codachi_dir = project_dir.join(".codachi");
         let state_path = codachi_dir.join("state.json");
         let config_path = codachi_dir.join("config.toml");
@@ -55,12 +56,16 @@ impl App {
             excited_until: None,
             show_achievements: false,
             should_quit: false,
+            test_mode,
         })
     }
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         let (fs_tx, fs_rx) = mpsc::channel();
         let _watcher = start_watcher(&self.project_dir, self.config.watch_patterns.clone(), fs_tx)?;
+
+        // Load custom sprites from project directory
+        self.anim.load_custom_sprites(&self.project_dir);
 
         // Check for initial achievements (e.g., It's Alive!)
         let initial = check_achievements(&mut self.state);
@@ -76,7 +81,7 @@ impl App {
 
         loop {
             // Draw
-            terminal.draw(|frame| draw(frame, &self.state, &self.anim, self.show_achievements))?;
+            terminal.draw(|frame| draw(frame, &self.state, &self.anim, self.show_achievements, self.test_mode))?;
 
             // Handle input (non-blocking, 100ms timeout for ~10fps event checking)
             if event::poll(Duration::from_millis(100))? {
@@ -88,6 +93,15 @@ impl App {
                             KeyCode::Char('f') => self.handle_feed(),
                             KeyCode::Char('c') => self.handle_clean(),
                             KeyCode::Char('a') => self.show_achievements = !self.show_achievements,
+                            // Test mode commands (number keys 1-9)
+                            KeyCode::Char('1') if self.test_mode => self.test_level_up(),
+                            KeyCode::Char('2') if self.test_mode => self.test_add_points(),
+                            KeyCode::Char('3') if self.test_mode => self.test_damage_health(),
+                            KeyCode::Char('4') if self.test_mode => self.test_heal(),
+                            KeyCode::Char('5') if self.test_mode => self.test_dirty(),
+                            KeyCode::Char('6') if self.test_mode => self.test_starve(),
+                            KeyCode::Char('7') if self.test_mode => self.test_add_xp(),
+                            KeyCode::Char('0') if self.test_mode => self.test_reset(),
                             _ => {}
                         }
                     }
@@ -102,9 +116,14 @@ impl App {
             // Animation tick
             self.anim.tick();
 
-            // Check for file saves
-            if let Ok(paths) = fs_rx.try_recv() {
-                self.handle_save(&paths);
+            // Check for file system events
+            if let Ok(event) = fs_rx.try_recv() {
+                match event {
+                    WatchEvent::SourceChanged(paths) => self.handle_save(&paths),
+                    WatchEvent::SpritesChanged => {
+                        self.anim.reload_sprites(&self.project_dir);
+                    }
+                }
             }
 
             // Periodic git check (every 30s)
@@ -254,5 +273,100 @@ impl App {
                 self.state.save_to(&self.state_path).ok();
             }
         }
+    }
+
+    // ========== Test Mode Commands ==========
+
+    /// Update mood after test commands
+    fn test_update_mood(&mut self) {
+        let mins_since_interaction = self.last_interaction.elapsed().as_secs() / 60;
+        let excited_override = self.excited_until.map(|t| Instant::now() < t).unwrap_or(false);
+        self.state.pet.mood = calculate_mood(&self.state, mins_since_interaction, excited_override);
+    }
+
+    /// [1] Cycle level (1 -> 2 -> 3 -> 1)
+    fn test_level_up(&mut self) {
+        if self.state.pet.level >= 3 {
+            // Reset to level 1 (Egg)
+            self.state.pet.level = 1;
+            self.state.pet.xp = 0;
+            self.anim.set_remark("TEST: Reset to Egg (Level 1)!".to_string());
+        } else {
+            self.state.pet.level += 1;
+            self.state.pet.xp = 0;
+            let level_name = match self.state.pet.level {
+                2 => "Buddy",
+                3 => "Elder",
+                _ => "Egg",
+            };
+            self.anim.set_remark(format!("TEST: Level {} - {}!", self.state.pet.level, level_name));
+        }
+        self.excited_until = Some(Instant::now() + Duration::from_secs(10));
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [2] Add 100 points
+    fn test_add_points(&mut self) {
+        self.state.economy.points += 100;
+        self.anim.set_remark(format!("TEST: +100 points ({})", self.state.economy.points));
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [3] Damage health by 30
+    fn test_damage_health(&mut self) {
+        self.state.pet.health = (self.state.pet.health - 30).max(0);
+        self.anim.set_remark(format!("TEST: Health -{} ({})", 30, self.state.pet.health));
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [4] Heal by 30
+    fn test_heal(&mut self) {
+        self.state.pet.health = (self.state.pet.health + 30).min(100);
+        self.anim.set_remark(format!("TEST: Health +{} ({})", 30, self.state.pet.health));
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [5] Reduce cleanliness by 40
+    fn test_dirty(&mut self) {
+        self.state.pet.cleanliness = (self.state.pet.cleanliness - 40).max(0);
+        self.anim.set_remark(format!("TEST: Cleanliness -{} ({})", 40, self.state.pet.cleanliness));
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [6] Reduce hunger by 40
+    fn test_starve(&mut self) {
+        self.state.pet.hunger = (self.state.pet.hunger - 40).max(0);
+        self.anim.set_remark(format!("TEST: Hunger -{} ({})", 40, self.state.pet.hunger));
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [7] Add 100 XP
+    fn test_add_xp(&mut self) {
+        self.state.pet.xp += 100;
+        self.anim.set_remark(format!("TEST: +100 XP ({})", self.state.pet.xp));
+        if check_level_up(&mut self.state) {
+            self.anim.set_remark(get_remark(&RemarkEvent::LevelUp).to_string());
+            self.excited_until = Some(Instant::now() + Duration::from_secs(10));
+        }
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
+    }
+
+    /// [0] Reset to defaults
+    fn test_reset(&mut self) {
+        self.state.pet.level = 1;
+        self.state.pet.xp = 0;
+        self.state.pet.health = 100;
+        self.state.pet.hunger = 100;
+        self.state.pet.cleanliness = 100;
+        self.state.economy.points = 10;
+        self.anim.set_remark("TEST: Reset to defaults!".to_string());
+        self.test_update_mood();
+        self.state.save_to(&self.state_path).ok();
     }
 }

@@ -11,7 +11,7 @@ use crate::state::{CodachiState, Mood};
 use crate::ui::animations::AnimationState;
 use crate::ui::widgets::{SpeechBubble, StatBar};
 
-pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show_all_achievements: bool) {
+pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show_all_achievements: bool, test_mode: bool) {
     let outer = frame.area();
 
     let main_block = Block::default()
@@ -93,16 +93,17 @@ pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show
     let sprite_area = chunks[1];
 
     // Center the sprite horizontally
-    let sprite_x = sprite_area.x + sprite_area.width.saturating_sub(sprite.width) / 2;
+    let sprite_width = sprite.width();
+    let sprite_x = sprite_area.x + sprite_area.width.saturating_sub(sprite_width) / 2;
     let sprite_y = sprite_area.y + 1;
 
-    for (i, line) in sprite.lines.iter().enumerate() {
+    for (i, line) in sprite.lines().iter().enumerate() {
         let y = sprite_y + i as u16;
         if y < sprite_area.y + sprite_area.height {
             frame.buffer_mut().set_string(
                 sprite_x,
                 y,
-                line,
+                *line,
                 Style::default().fg(Color::Green),
             );
         }
@@ -110,7 +111,7 @@ pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show
 
     // Speech bubble (to the right of sprite)
     if let Some(remark) = anim.current_remark() {
-        let bubble_x = sprite_x + sprite.width + 1;
+        let bubble_x = sprite_x + sprite_width + 1;
         let bubble_area = Rect::new(
             bubble_x,
             sprite_y,
@@ -179,7 +180,7 @@ pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show
     frame.render_widget(Paragraph::new(points_line), chunks[3]);
 
     // Controls
-    let controls = Line::from(vec![
+    let mut control_spans = vec![
         Span::styled(" [F]", Style::default().fg(Color::Yellow)),
         Span::raw("eed  "),
         Span::styled("[C]", Style::default().fg(Color::Cyan)),
@@ -188,7 +189,14 @@ pub fn draw(frame: &mut Frame, state: &CodachiState, anim: &AnimationState, show
         Span::raw("chievements  "),
         Span::styled("[Q]", Style::default().fg(Color::Red)),
         Span::raw("uit"),
-    ]);
+    ];
+
+    if test_mode {
+        control_spans.push(Span::raw("  "));
+        control_spans.push(Span::styled("TEST MODE", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)));
+    }
+
+    let controls = Line::from(control_spans);
     frame.render_widget(Paragraph::new(controls), chunks[4]);
 
     // Recent achievements

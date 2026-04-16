@@ -9,6 +9,10 @@ struct Cli {
     /// Project directory to watch (defaults to current directory)
     #[arg(short, long)]
     watch: Option<PathBuf>,
+
+    /// Enable test mode with debug commands
+    #[arg(long)]
+    test_mode: bool,
 }
 
 fn main() -> Result<()> {
@@ -18,7 +22,7 @@ fn main() -> Result<()> {
         .unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
 
     let mut terminal = ratatui::init();
-    let result = App::new(&project_dir)?.run(&mut terminal);
+    let result = App::new(&project_dir, cli.test_mode)?.run(&mut terminal);
     ratatui::restore();
     result
 }
