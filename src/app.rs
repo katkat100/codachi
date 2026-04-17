@@ -40,7 +40,7 @@ impl App {
         let config_path = codachi_dir.join("config.toml");
 
         let state = CodachiState::load_from(&state_path)?;
-        let config = Config::load_from(&config_path)?;
+        let config = Config::auto_detect(&config_path, project_dir)?;
 
         Ok(Self {
             state,

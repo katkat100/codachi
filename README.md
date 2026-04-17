@@ -116,19 +116,39 @@ ascii/
 
 Sprites hot-reload when you save changes - no restart needed!
 
+## Language Support
+
+Codachi automatically detects your project type and configures linting:
+
+| Language | Detection | Lint Command |
+|----------|-----------|--------------|
+| **Rust** | `Cargo.toml` | `cargo check --message-format=json` |
+| **TypeScript** | `tsconfig.json` | `npx tsc --noEmit` |
+| **JavaScript** | `package.json` | `npx eslint . --format json` |
+| **Python** | `requirements.txt`, `pyproject.toml` | `python -m py_compile` |
+| **Go** | `go.mod` | `go build ./...` |
+| **Ruby** | `Gemfile` | `ruby -c` |
+| **Java** | `pom.xml`, `build.gradle` | `javac -Xlint:all` |
+| **C#** | `*.csproj`, `*.sln` | `dotnet build` |
+| **C++** | `CMakeLists.txt`, `Makefile` | `make` |
+
 ## Configuration
 
-Create `.codachi/config.toml` in your project to customize:
+Codachi works out of the box with auto-detection, but you can customize by creating `.codachi/config.toml`:
 
 ```toml
 # Lint command to run on save
 lint_cmd = "cargo check --message-format=json"
 
-# Parser type: "cargo_json" or "regex"
-lint_parser = "cargo_json"
+# Parser type: "cargo", "eslint", or "regex"
+lint_parser = "cargo"
 
 # File patterns to watch
 watch_patterns = ["**/*.rs", "**/*.toml"]
+
+# For regex parser, specify patterns
+error_pattern = "error:"
+warning_pattern = "warning:"
 ```
 
 ## Test Mode

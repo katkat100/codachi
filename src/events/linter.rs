@@ -75,9 +75,34 @@ pub fn parse_regex_output(output: &str, error_pattern: &str, warning_pattern: &s
     LintResult { errors, warnings }
 }
 
+/// Parse ESLint JSON output
+pub fn parse_eslint_output(output: &str) -> LintResult {
+    let mut errors = 0u32;
+    let mut warnings = 0u32;
+
+    // ESLint JSON output is an array of file results
+    let Ok(results) = serde_json::from_str::<serde_json::Value>(output) else {
+        return LintResult::default();
+    };
+
+    if let Some(arr) = results.as_array() {
+        for file_result in arr {
+            if let Some(count) = file_result.get("errorCount").and_then(|c| c.as_u64()) {
+                errors += count as u32;
+            }
+            if let Some(count) = file_result.get("warningCount").and_then(|c| c.as_u64()) {
+                warnings += count as u32;
+            }
+        }
+    }
+
+    LintResult { errors, warnings }
+}
+
 pub fn parse_output(output: &str, parser: &str, error_pattern: Option<&str>, warning_pattern: Option<&str>) -> LintResult {
     match parser {
         "cargo" => parse_cargo_output(output),
+        "eslint" => parse_eslint_output(output),
         "regex" => parse_regex_output(
             output,
             error_pattern.unwrap_or("error"),

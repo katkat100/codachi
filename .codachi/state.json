@@ -1,0 +1,71 @@
+{
+  "pet": {
+    "name": "Codachi",
+    "level": 2,
+    "xp": 3,
+    "health": 0,
+    "hunger": 100,
+    "cleanliness": 25,
+    "mood": "sick",
+    "alive_since": "2026-04-10T18:30:40.166688Z"
+  },
+  "economy": {
+    "points": 479,
+    "total_commits": 3,
+    "last_known_commit_count": 4
+  },
+  "achievements": [
+    {
+      "id": "its_alive",
+      "unlocked_at": "2026-04-10T18:30:40.172183Z"
+    },
+    {
+      "id": "first_clean_save",
+      "unlocked_at": "2026-04-10T18:35:41.015571Z"
+    },
+    {
+      "id": "attentive_parent",
+      "unlocked_at": "2026-04-10T19:30:40.416964Z"
+    },
+    {
+      "id": "spa_day",
+      "unlocked_at": "2026-04-10T21:55:16.636281Z"
+    },
+    {
+      "id": "first_commit",
+      "unlocked_at": "2026-04-10T21:57:16.371210Z"
+    },
+    {
+      "id": "first_meal",
+      "unlocked_at": "2026-04-10T22:02:40.882357Z"
+    },
+    {
+      "id": "bug_squasher",
+      "unlocked_at": "2026-04-16T22:00:16.618998Z"
+    },
+    {
+      "id": "growing_up",
+      "unlocked_at": "2026-04-16T22:03:22.807693Z"
+    },
+    {
+      "id": "final_form",
+      "unlocked_at": "2026-04-16T22:11:15.385282Z"
+    },
+    {
+      "id": "neglectful",
+      "unlocked_at": "2026-04-16T22:30:59.480356Z"
+    }
+  ],
+  "session": {
+    "errors_since_last_save": 0,
+    "warnings_since_last_save": 0,
+    "clean_saves_streak": 4,
+    "total_errors_fixed": 15,
+    "daily_commits": 1,
+    "daily_commits_date": "2026-04-17",
+    "last_interaction": "2026-04-10T18:30:40.166779Z",
+    "attentive_since": null,
+    "has_fed": true,
+    "has_cleaned": true
+  }
+}
