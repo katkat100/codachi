@@ -239,8 +239,13 @@ impl App {
 
     fn handle_clean(&mut self) {
         if let Some(last) = self.last_clean_time {
-            if last.elapsed() < Duration::from_secs(300) {
-                return; // cooldown
+            let elapsed = last.elapsed();
+            if elapsed < Duration::from_secs(300) {
+                let remaining = 300 - elapsed.as_secs();
+                let mins = remaining / 60;
+                let secs = remaining % 60;
+                self.anim.set_remark(format!("Cleaning on cooldown ({}:{:02})", mins, secs));
+                return;
             }
         }
         apply_clean(&mut self.state);
